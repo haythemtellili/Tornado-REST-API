@@ -32,9 +32,7 @@ def initialize_model(args):
     # load an instance segmentation model pre-trained pre-trained on COCO
     device = "cpu"
     model = torchvision.models.detection.maskrcnn_resnet50_fpn(
-        pretrained=True,
-        box_nms_thresh=0.95,
-        rpn_nms_thresh=0.95,
+        pretrained=True, box_nms_thresh=0.95, rpn_nms_thresh=0.95,
     )
     # get number of input features for the classifier
     in_features = model.roi_heads.box_predictor.cls_score.in_features
@@ -49,10 +47,10 @@ def initialize_model(args):
         in_features_mask, hidden_layer, num_classes
     )
     detection_model = args.detection_model
-    model.load_state_dict(torch.load(detection_model, map_location=torch.device('cpu')))
+    model.load_state_dict(torch.load(detection_model, map_location=torch.device("cpu")))
     model.to(device)
     model.eval()
-    
+
     init_model_dict = {
         "detection_model": model,
         "classification_confidence_threshold": args.classification_confidence_threshold,
@@ -63,12 +61,8 @@ def initialize_model(args):
 
 
 def detect_objects(
-    img,
-    model,
-    iou_threshold,
-    classification_confidence_threshold,
-    mask_thresh
-    ):
+    img, model, iou_threshold, classification_confidence_threshold, mask_thresh
+):
     pred = None
     if img is not None:
         trans = torchvision.transforms.Compose([torchvision.transforms.ToTensor()])
@@ -76,23 +70,24 @@ def detect_objects(
         pred = None
         if img_tensor.shape[0] == 3:
             with torch.no_grad():
-                pred = model([img_tensor.to('cpu')])
+                pred = model([img_tensor.to("cpu")])
 
             pred = {k: v.cpu().detach() for k, v in pred[0].items()}
 
-            keep = torchvision.ops.nms(pred['boxes'], 
-                                    pred['scores'],
-                                   iou_threshold=iou_threshold)
+            keep = torchvision.ops.nms(
+                pred["boxes"], pred["scores"], iou_threshold=iou_threshold
+            )
 
             pred = {k: v[keep] for k, v in pred.items()}
 
-            mask = pred['scores'] > classification_confidence_threshold
-            pred = {k: v[mask] for k,v in pred.items()}
+            mask = pred["scores"] > classification_confidence_threshold
+            pred = {k: v[mask] for k, v in pred.items()}
             # Mask pixel thresh
             pred["masks"][pred["masks"] > mask_thresh] = 1
             pred["masks"][pred["masks"] < mask_thresh] = 0
 
     return pred
+
 
 def normalize_polygon(image_shape, box_polygon):
     height, width, _ = image_shape
@@ -132,6 +127,7 @@ def bbox_to_polygon(bbox):
     )
     return polygon_bbox
 
+
 def convert_xyxy_xywh(box):
     xy1 = tuple([int(box[0]), int(box[1])])
     xy2 = tuple([int(box[2]), int(box[3])])
@@ -141,7 +137,13 @@ def convert_xyxy_xywh(box):
     return [list(xy)[0], list(xy)[1], w, h]
 
 
-def predict_one_sample(image, detection_model, iou_threshold, classification_confidence_threshold, mask_thresh):
+def predict_one_sample(
+    image,
+    detection_model,
+    iou_threshold,
+    classification_confidence_threshold,
+    mask_thresh,
+):
     """
     :param image: (PIL.Image) loaded image
     :param model: (torch.nn.Module) trained model with loaded state dict
@@ -149,10 +151,16 @@ def predict_one_sample(image, detection_model, iou_threshold, classification_con
 
     :return: (dict) with preds 
     """
-    dic2map = {'1':'clamp standoff bad', '2':'metal snap in', '3':'plastic support'}
+    dic2map = {"1": "clamp standoff bad", "2": "metal snap in", "3": "plastic support"}
     height, width, c = image.shape
     image_shape = image.shape
-    pred = detect_objects(image, detection_model, iou_threshold, classification_confidence_threshold, mask_thresh)
+    pred = detect_objects(
+        image,
+        detection_model,
+        iou_threshold,
+        classification_confidence_threshold,
+        mask_thresh,
+    )
     if pred:
         predictions = []
         output = {"predictions": []}
